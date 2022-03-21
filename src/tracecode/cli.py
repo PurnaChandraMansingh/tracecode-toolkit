@@ -56,7 +56,7 @@ def write_json(analysis, outfile):
 def print_version(ctx, param, value):
     if not value or ctx.resilient_parsing:
         return
-    click.echo('TraceCode version ' + __version__)
+    click.echo(f'TraceCode version {__version__}')
     ctx.exit()
 
 
@@ -83,10 +83,10 @@ def cli(develop, deploy, json):
     ])
 
     if not is_json_path(develop):
-        click.echo('Develop path is not a json file:' + develop)
+        click.echo(f'Develop path is not a json file:{develop}')
         return
     if not is_json_path(deploy):
-        click.echo('Deploy path is not a json file: ' + deploy)
+        click.echo(f'Deploy path is not a json file: {deploy}')
         return
 
     analysis = matchers.DeploymentAnalysis(

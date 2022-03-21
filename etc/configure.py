@@ -73,6 +73,7 @@ A call using etc/conf/prod would results in these steps if on linux:
     etc/conf/prod/linux.sh
 """
 
+
 from __future__ import absolute_import
 from __future__ import print_function
 
@@ -95,9 +96,6 @@ elif 'darwin' in sys_platform:
     platform_names = ('posix', 'mac',)
 else:
     raise Exception('Unsupported OS/platform %r' % sys_platform)
-    platform_names = tuple()
-
-
 # Python versions
 _sys_v0 = sys.version_info[0]
 py2 = _sys_v0 == 2
@@ -109,15 +107,18 @@ base = ('base',)
 
 # known full file names with txt extension for requirements
 # base is always last
-requirement_filenames = tuple('requirements_' + p + '.txt' for p in platform_names + base)
+requirement_filenames = tuple(
+    f'requirements_{p}.txt' for p in platform_names + base
+)
+
 
 # known full file names with py extensions for scripts
 # base is always last
-python_scripts = tuple(p + '.py' for p in platform_names + base)
+python_scripts = tuple(f'{p}.py' for p in platform_names + base)
 
 # known full file names of shell scripts
 # there is no base for scripts: they cannot work cross OS (cmd vs. sh)
-shell_scripts = tuple(p + '.sh' for p in platform_names)
+shell_scripts = tuple(f'{p}.sh' for p in platform_names)
 if on_win:
     shell_scripts = ('win.bat',)
 
@@ -146,8 +147,7 @@ def find_pycache(root_dir):
             if d == '__pycache__':
                 dir_path = os.path.join(top, d)
                 dir_path = dir_path.replace(root_dir, '', 1)
-                dir_path = dir_path.strip(os.path.sep)
-                yield dir_path
+                yield dir_path.strip(os.path.sep)
 
 
 def clean(root_dir):
@@ -245,7 +245,7 @@ def quote(s):
     """
     Return a string s enclosed in double quotes.
     """
-    return '"{}"'.format(s)
+    return f'"{s}"'
 
 
 def create_virtualenv_py3(std_python, root_dir, tpp_dirs=(), quiet=False):
@@ -324,11 +324,7 @@ def run_scripts(configs, root_dir, configured_python, quiet=False):
 
     # Run sh_script scripts for each configurations
     for sh_script in get_conf_files(configs, root_dir, shell_scripts):
-        if on_win:
-            cmd = []
-        else:
-            # we source the scripts on posix
-            cmd = ['.']
+        cmd = [] if on_win else ['.']
         cmd.extend([quote(os.path.join(root_dir, sh_script))])
         call(cmd, root_dir)
 
@@ -551,21 +547,16 @@ if __name__ == '__main__':
         abs_path = path
         if not os.path.isabs(path):
             abs_path = os.path.join(root_dir, path)
-        if not os.path.exists(abs_path):
-            if not quiet:
-                print()
-                print('WARNING: Third-party Python libraries directory does not exists:\n'
-                      '  %(path)r: %(abs_path)r\n'
-                      '  Provided by environment variable:\n'
-                      '  set %(envvar)s=%(path)r' % locals())
-                print()
-        else:
+        if os.path.exists(abs_path):
             thirdparty_dirs.append(path)
-    if py2:
-        create_virtualenv = create_virtualenv_py2
-    else:
-        create_virtualenv = create_virtualenv_py3
-
+        elif not quiet:
+            print()
+            print('WARNING: Third-party Python libraries directory does not exists:\n'
+                  '  %(path)r: %(abs_path)r\n'
+                  '  Provided by environment variable:\n'
+                  '  set %(envvar)s=%(path)r' % locals())
+            print()
+    create_virtualenv = create_virtualenv_py2 if py2 else create_virtualenv_py3
     # Finally execute our three steps: venv, install and scripts
     if not os.path.exists(configured_python):
         create_virtualenv(standard_python, root_dir, thirdparty_dirs, quiet=quiet)

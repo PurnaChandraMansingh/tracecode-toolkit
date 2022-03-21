@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 """Create a "virtual" Python installation"""
 
+
 import os
 import sys
 
@@ -41,7 +42,7 @@ __version__ = "16.0.0"
 virtualenv_version = __version__  # legacy
 
 if sys.version_info < (2, 7):
-    print('ERROR: %s' % sys.exc_info()[1])
+    print(f'ERROR: {sys.exc_info()[1]}')
     print('ERROR: this script requires Python 2.7 or greater.')
     sys.exit(101)
 
@@ -50,7 +51,7 @@ try:
 except NameError:
     basestring = str
 
-py_version = 'python%s.%s' % (sys.version_info[0], sys.version_info[1])
+py_version = f'python{sys.version_info[0]}.{sys.version_info[1]}'
 
 is_jython = sys.platform.startswith('java')
 is_pypy = hasattr(sys, 'pypy_version_info')
@@ -99,7 +100,7 @@ else:
                 i = i + 1
             except WindowsError:
                 break
-        exes = dict()
+        exes = {}
         for ver in versions:
             try:
                 path = winreg.QueryValue(python_core, "%s\\InstallPath" % ver)
@@ -141,7 +142,7 @@ elif majver == 3:
     	'token', 'functools', 'heapq', 'bisect', 'weakref', 'reprlib'
     ])
     if minver >= 2:
-        REQUIRED_FILES[-1] = 'config-%s' % majver
+        REQUIRED_FILES[-1] = f'config-{majver}'
     if minver >= 3:
         import sysconfig
         platdir = sysconfig.get_config_var('PLATDIR')
@@ -211,10 +212,9 @@ class Logger(object):
         self.log(self.FATAL, msg, *args, **kw)
 
     def log(self, level, msg, *args, **kw):
-        if args:
-            if kw:
-                raise TypeError(
-                    "You may give positional or keyword arguments, not both")
+        if args and kw:
+            raise TypeError(
+                "You may give positional or keyword arguments, not both")
         args = args or kw
         rendered = None
         for consumer_level, consumer in self.consumers:
@@ -225,10 +225,7 @@ class Logger(object):
                     sys.stdout.write('\n')
                     sys.stdout.flush()
                 if rendered is None:
-                    if args:
-                        rendered = msg % args
-                    else:
-                        rendered = msg
+                    rendered = msg % args if args else msg
                     rendered = ' '*self.indent + rendered
                 if hasattr(consumer, 'write'):
                     consumer.write(rendered+'\n')
@@ -253,11 +250,10 @@ class Logger(object):
         if self.stdout_level_matches(self.NOTIFY):
             if not self.in_progress_hanging:
                 # Some message has been printed out since start_progress
-                sys.stdout.write('...' + self.in_progress + msg + '\n')
-                sys.stdout.flush()
+                sys.stdout.write(f'...{self.in_progress}{msg}' + '\n')
             else:
                 sys.stdout.write(msg + '\n')
-                sys.stdout.flush()
+            sys.stdout.flush()
         self.in_progress = None
         self.in_progress_hanging = False
 
@@ -274,10 +270,14 @@ class Logger(object):
 
     def _stdout_level(self):
         """Returns the level that stdout runs at"""
-        for level, consumer in self.consumers:
-            if consumer is sys.stdout:
-                return level
-        return self.FATAL
+        return next(
+            (
+                level
+                for level, consumer in self.consumers
+                if consumer is sys.stdout
+            ),
+            self.FATAL,
+        )
 
     def level_matches(self, level, consumer_level):
         """
@@ -295,15 +295,14 @@ class Logger(object):
         >>> l.level_matches(slice(2, 3), 1)
         False
         """
-        if isinstance(level, slice):
-            start, stop = level.start, level.stop
-            if start is not None and start > consumer_level:
-                return False
-            if stop is not None and stop <= consumer_level:
-                return False
-            return True
-        else:
+        if not isinstance(level, slice):
             return level >= consumer_level
+        start, stop = level.start, level.stop
+        if start is not None and start > consumer_level:
+            return False
+        if stop is not None and stop <= consumer_level:
+            return False
+        return True
 
     @classmethod
     def level_for_integer(cls, level):
@@ -342,10 +341,7 @@ def copyfile(src, dest, symlink=True):
     if not os.path.exists(os.path.dirname(dest)):
         logger.info('Creating parent directories for %s', os.path.dirname(dest))
         os.makedirs(os.path.dirname(dest))
-    if not os.path.islink(src):
-        srcpath = os.path.abspath(src)
-    else:
-        srcpath = os.readlink(src)
+    srcpath = os.readlink(src) if os.path.islink(src) else os.path.abspath(src)
     if symlink and hasattr(os, 'symlink') and not is_win:
         logger.info('Symlinking %s', dest)
         try:
@@ -457,7 +453,7 @@ class ConfigOptionParser(optparse.OptionParser):
         for key, val in config.items():
             key = key.replace('_', '-')
             if not key.startswith('--'):
-                key = '--%s' % key  # only prefer long opts
+                key = f'--{key}'
             option = self.get_option(key)
             if option is not None:
                 # ignore empty values
@@ -476,7 +472,7 @@ class ConfigOptionParser(optparse.OptionParser):
                     val = option.convert_value(key, val)
                 except optparse.OptionValueError:
                     e = sys.exc_info()[1]
-                    print("An error occurred during configuration: %s" % e)
+                    print(f"An error occurred during configuration: {e}")
                     sys.exit(3)
                 defaults[option.dest] = val
         return defaults
@@ -485,9 +481,7 @@ class ConfigOptionParser(optparse.OptionParser):
         """
         Get a section of a configuration
         """
-        if self.config.has_section(name):
-            return self.config.items(name)
-        return []
+        return self.config.items(name) if self.config.has_section(name) else []
 
     def get_environ_vars(self, prefix='VIRTUALENV_'):
         """
@@ -660,9 +654,9 @@ def main():
         env = os.environ.copy()
         interpreter = resolve_interpreter(options.python)
         if interpreter == sys.executable:
-            logger.warn('Already using interpreter %s' % interpreter)
+            logger.warn(f'Already using interpreter {interpreter}')
         else:
-            logger.notify('Running virtualenv with interpreter %s' % interpreter)
+            logger.notify(f'Running virtualenv with interpreter {interpreter}')
             env['VIRTUALENV_INTERPRETER_RUNNING'] = 'true'
             file = __file__
             if file.endswith('.pyc'):
@@ -720,7 +714,7 @@ def call_subprocess(cmd, show_stdout=True,
     cmd_parts = []
     for part in cmd:
         if len(part) > 45:
-            part = part[:20]+"..."+part[-20:]
+            part = f'{part[:20]}...{part[-20:]}'
         if ' ' in part or '\n' in part or '"' in part or "'" in part:
             part = '"%s"' % part.replace('"', '\\"')
         if hasattr(part, 'decode'):
@@ -730,20 +724,14 @@ def call_subprocess(cmd, show_stdout=True,
                 part = part.decode(sys.getfilesystemencoding())
         cmd_parts.append(part)
     cmd_desc = ' '.join(cmd_parts)
-    if show_stdout:
-        stdout = None
-    else:
-        stdout = subprocess.PIPE
-    logger.debug("Running command %s" % cmd_desc)
-    if extra_env or remove_from_env:
-        env = os.environ.copy()
-        if extra_env:
-            env.update(extra_env)
-        if remove_from_env:
-            for varname in remove_from_env:
-                env.pop(varname, None)
-    else:
-        env = None
+    stdout = None if show_stdout else subprocess.PIPE
+    logger.debug(f"Running command {cmd_desc}")
+    env = os.environ.copy() if extra_env or remove_from_env else None
+    if extra_env:
+        env.update(extra_env)
+    if remove_from_env:
+        for varname in remove_from_env:
+            env.pop(varname, None)
     try:
         proc = subprocess.Popen(
             cmd, stderr=subprocess.STDOUT,
@@ -752,8 +740,7 @@ def call_subprocess(cmd, show_stdout=True,
             cwd=cwd, env=env)
     except Exception:
         e = sys.exc_info()[1]
-        logger.fatal(
-            "Error %s while executing command %s" % (e, cmd_desc))
+        logger.fatal(f"Error {e} while executing command {cmd_desc}")
         raise
     all_output = []
     if stdout is not None:
@@ -789,20 +776,14 @@ def call_subprocess(cmd, show_stdout=True,
     if proc.returncode:
         if raise_on_returncode:
             if all_output:
-                logger.notify('Complete output from command %s:' % cmd_desc)
+                logger.notify(f'Complete output from command {cmd_desc}:')
                 logger.notify('\n'.join(all_output) + '\n----------------------------------------')
-            raise OSError(
-                "Command %s failed with error code %s"
-                % (cmd_desc, proc.returncode))
+            raise OSError(f"Command {cmd_desc} failed with error code {proc.returncode}")
         else:
-            logger.warn(
-                "Command %s had error code %s"
-                % (cmd_desc, proc.returncode))
+            logger.warn(f"Command {cmd_desc} had error code {proc.returncode}")
 
 def filter_install_output(line):
-    if line.strip().startswith('running'):
-        return Logger.INFO
-    return Logger.DEBUG
+    return Logger.INFO if line.strip().startswith('running') else Logger.DEBUG
 
 def find_wheels(projects, search_dirs):
     """Find wheels from which we can import PROJECTS.
@@ -818,15 +799,12 @@ def find_wheels(projects, search_dirs):
     # then use to install the correct version.
     for project in projects:
         for dirname in search_dirs:
-            # This relies on only having "universal" wheels available.
-            # The pattern could be tightened to require -py2.py3-none-any.whl.
-            files = glob.glob(os.path.join(dirname, project + '-*.whl'))
-            if files:
+            if files := glob.glob(os.path.join(dirname, f'{project}-*.whl')):
                 wheels.append(os.path.abspath(files[0]))
                 break
         else:
             # We're out of luck, so quit with a suitable error
-            logger.fatal('Cannot find a wheel for %s' % (project,))
+            logger.fatal(f'Cannot find a wheel for {project}')
 
     return wheels
 
@@ -847,9 +825,7 @@ def install_wheel(project_names, py_executable, search_dirs=None,
         from urllib.parse import urljoin
         from urllib.request import pathname2url
     def space_path2url(p):
-        if ' ' not in p:
-            return p
-        return urljoin('file:', pathname2url(os.path.abspath(p)))
+        return urljoin('file:', pathname2url(os.path.abspath(p))) if ' ' in p else p
     findlinks = ' '.join(space_path2url(d) for d in search_dirs)
 
     SCRIPT = textwrap.dedent("""
@@ -1034,33 +1010,35 @@ def change_prefix(filename, dst_prefix):
                 assert relpath[0] == os.sep
                 relpath = relpath[1:]
             return join(dst_prefix, relpath)
-    assert False, "Filename %s does not start with any of these prefixes: %s" % \
-        (filename, prefixes)
+    assert (
+        False
+    ), f"Filename {filename} does not start with any of these prefixes: {prefixes}"
 
 def copy_required_modules(dst_prefix, symlink):
     import imp
 
     for modname in REQUIRED_MODULES:
         if modname in sys.builtin_module_names:
-            logger.info("Ignoring built-in bootstrap module: %s" % modname)
+            logger.info(f"Ignoring built-in bootstrap module: {modname}")
             continue
         try:
             f, filename, _ = imp.find_module(modname)
         except ImportError:
-            logger.info("Cannot import bootstrap module: %s" % modname)
+            logger.info(f"Cannot import bootstrap module: {modname}")
         else:
             if f is not None:
                 f.close()
             # special-case custom readline.so on OS X, but not for pypy:
             if modname == 'readline' and sys.platform == 'darwin' and not (
                     is_pypy or filename.endswith(join('lib-dynload', 'readline.so'))):
-                dst_filename = join(dst_prefix, 'lib', 'python%s' % sys.version[:3], 'readline.so')
-            elif modname == 'readline' and sys.platform == 'win32':
-                # special-case for Windows, where readline is not a
-                # standard module, though it may have been installed in
-                # site-packages by a third-party package
-                pass
-            else:
+                dst_filename = join(
+                    dst_prefix,
+                    'lib',
+                    f'python{sys.version[:3]}',
+                    'readline.so',
+                )
+
+            elif modname != 'readline' or sys.platform != 'win32':
                 dst_filename = change_prefix(filename, dst_prefix)
             copyfile(filename, dst_filename, symlink)
             if filename.endswith('.pyc'):

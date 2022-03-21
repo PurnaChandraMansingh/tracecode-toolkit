@@ -62,11 +62,12 @@ class TracecodeResource(object):
         Append the matched_resource, if the checksum result with the same path is already in the result, skip it.
         """
         if matched_resource:
-            should_append = True
-            for existing_resource in self.deployed_resources:
-                # If the checksum is matched,  skip other types of match.
-                if existing_resource.path == matched_resource.path and existing_resource.matcher == CHECKSUM_MATCH:
-                    should_append = False
+            should_append = not any(
+                existing_resource.path == matched_resource.path
+                and existing_resource.matcher == CHECKSUM_MATCH
+                for existing_resource in self.deployed_resources
+            )
+
             if should_append:
                 self.deployed_resources.append(matched_resource)
 
@@ -74,8 +75,11 @@ class TracecodeResource(object):
         res = self.resource.to_dict()
         resources_result = []
         if self.deployed_resources:
-            for deployed_resource in self.deployed_resources:
-                resources_result.append(deployed_resource.to_dict())
+            resources_result.extend(
+                deployed_resource.to_dict()
+                for deployed_resource in self.deployed_resources
+            )
+
         res['deployed_to'] = resources_result
         return res
 
@@ -275,6 +279,5 @@ def match_paths(path1, paths2):
         tops = cp1[max(cp1)]
         # do not keep multiple matches of len 1: these are filename matches
         # and are too weak to be valid in most cases
-        if not(max(cp1) == 1 and len(tops) > 1):
-            for top in tops:
-                yield top
+        if max(cp1) != 1 or len(tops) <= 1:
+            yield from tops

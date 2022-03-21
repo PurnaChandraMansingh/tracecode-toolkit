@@ -49,9 +49,7 @@ def get_notice():
     [notice_text, acknowledgment_text] = notice_text.split(delimiter, 1)
     acknowledgment_text = delimiter + acknowledgment_text
 
-    notice = acknowledgment_text.strip().replace('  ', '')
-
-    return notice
+    return acknowledgment_text.strip().replace('  ', '')
 
 
 def is_json_path(location):

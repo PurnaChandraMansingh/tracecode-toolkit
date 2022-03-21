@@ -37,11 +37,7 @@ def common_prefix(s1, s2):
     """
     if not s1 or not s2:
         return None
-    common = genericpath.commonprefix((s1, s2,))
-    if common:
-        return common
-    else:
-        return None
+    return common if (common := genericpath.commonprefix((s1, s2,))) else None
 
 
 def common_suffix(s1, s2):
@@ -50,10 +46,7 @@ def common_suffix(s1, s2):
     """
     if not s1 or not s2:
         return None
-    # revert the seqs and get a common prefix
-    common = common_prefix(s1[::-1], s2[::-1])
-    # revert back
-    if common:
+    if common := common_prefix(s1[::-1], s2[::-1]):
         return common[::-1]
     else:
         return common
