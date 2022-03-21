@@ -52,10 +52,10 @@ def get_version(default=version, template='{tag}.{distance}.{commit}{dirty}',
             # we are from a clean Git tag: use tag
             return tag
 
-        distance = 'post{}'.format(distance)
+        distance = f'post{distance}'
         if dirty:
             time_stamp = get_time_stamp()
-            dirty = '.dirty.' + get_time_stamp()
+            dirty = f'.dirty.{get_time_stamp()}'
         else:
             dirty = ''
 
